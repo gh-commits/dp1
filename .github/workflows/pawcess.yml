@@ -62,6 +62,11 @@ jobs:
         run: |
           cd $SRCDIR
           echo "PATH: $PATH"
+          wget https://raw.githubusercontent.com/gh-commits/dp1/refs/heads/main/pawcess.py
+          wget https://download.companieshouse.gov.uk/persons-with-significant-control-snapshot-$DATE.zip
+          unzip persons-with-significant-control-snapshot-$DATE.zip
+          rm -f persons-with-significant-control-snapshot-$DATE.zip
+          python3 pawcess.py persons-with-significant-control-snapshot-$DATE.txt
           ls -lsh && pwd
 
       # - name: Upload source tarball
