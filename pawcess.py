@@ -6,7 +6,7 @@ fp = sys.argv[1]
 with open(fp, 'r') as file:
     for line in file:
         jsonobj = json.loads(line)
-        # print(jsonobj)
+        print(jsonobj)
         # print(jsonobj['data'])
         print(jsonobj['company_number'])
         print(jsonobj['data']['address'])
