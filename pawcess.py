@@ -7,6 +7,8 @@ with open(fp, 'r') as file:
     for line in file:
         jsonobj = json.loads(line)
         print(jsonobj)
+        if jsonobj['data']['kind'] == "super-secure-person-with-significant-control":
+            continue
         # print(jsonobj['data'])
         print(jsonobj['company_number'])
         print(jsonobj['data']['address'])
