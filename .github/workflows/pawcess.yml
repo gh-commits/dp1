@@ -74,5 +74,3 @@ jobs:
       #   with:
       #     name: linux-src-${{ env.VERSION }}
       #     path: /home/runner/work/gollum/gollum/chromium-src/*.tar.xz
-          path: /home/runner/work/gollum/gollum/chromium-src/out.tar.zst
-          overwrite: true
