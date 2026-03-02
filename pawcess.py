@@ -17,8 +17,10 @@ with open(fp, 'r') as file:
         print(jsonobj['data']['notified_on'])
         print(jsonobj['data']['links'])
 
-        if jsonobj['data']['kind'] != "corporate-entity-person-with-significant-control":
+        if jsonobj['data']['kind'] != "corporate-entity-person-with-significant-control" or "legal-person-person-with-significant-control":
             print(jsonobj['data']['country_of_residence'])
             print(jsonobj['data']['date_of_birth'])
             print(jsonobj['data']['nationality'])
             print(jsonobj['data']['name_elements'])
+        else:
+            print(jsonobj['data']['identification'])
