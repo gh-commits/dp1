@@ -1,0 +1,193 @@
+name: default-linux
+
+# Controls when the workflow will run
+on:
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    env:
+      DATE: 2025-01-01
+      SRCDIR: psc-data
+    steps:
+      - name: Maximize build space
+        uses: easimon/maximize-build-space@master
+        with:
+          remove-dotnet: 'true'
+          remove-android: 'true'
+          remove-haskell: 'true'
+          remove-codeql: 'true'
+          remove-docker-images: 'true'
+
+      - name: Reclaiming disk space on / by disabling swap partition
+        run: |
+          sudo swapoff -av
+          sudo rm -f /swapfile
+
+      - name: Remove not needed items
+        run: |
+          sudo rm -rf /usr/local/.ghcup \
+            /usr/share/dotnet \
+            /usr/share/swift \
+            /usr/local/share/powershell \
+            /usr/local/lib/android \
+            /opt/ghc \
+            /opt/hostedtoolcache/CodeQL \
+            /imagegeneration \
+            "$AGENT_TOOLSDIRECTORY"
+          sudo docker image prune --all --force
+          sudo docker builder prune -a
+
+      - name: Setup src dir
+        run: |
+          sudo apt install curl ca-certificates
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc --fail https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          . /etc/os-release
+          sudo sh -c "echo 'deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $VERSION_CODENAME-pgdg main' > /etc/apt/sources.list.d/pgdg.list"
+          sudo apt update
+          sudo apt install -y postgresql-18
+          mkdir -p $SRCDIR && cd $SRCDIR
+
+      - name: Adding depot_tools to path
+        env:
+          ACTIONS_ALLOW_UNSECURE_COMMANDS: true
+        run: echo "::add-path::$GITHUB_WORKSPACE/chromium-src/depot_tools"
+
+      - name: Clone source and do gclient sync
+        shell: bash
+        run: |
+          cd $SRCDIR
+          echo "PATH: $PATH"
+          ls -lsh && pwd
+
+      # - name: Upload source tarball
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: linux-src-${{ env.VERSION }}
+      #     path: /home/runner/work/gollum/gollum/chromium-src/*.tar.xz
+
+  linuxbuild5:
+      # needs: linuxbuild4
+      runs-on: ubuntu-latest
+      env:
+        VMAJOR: 144
+        VERSION: 144.0.7559.132
+        SRCDIR: chromium-src
+      steps:
+      - name: Maximize build space
+        uses: easimon/maximize-build-space@master
+        with:
+          remove-dotnet: 'true'
+          remove-android: 'true'
+          remove-haskell: 'true'
+          remove-codeql: 'true'
+          remove-docker-images: 'true'
+
+      - name: Reclaiming disk space on / by disabling swap partition
+        run: |
+          sudo swapoff -av
+          sudo rm -f /swapfile
+
+      - name: Remove not needed items
+        run: |
+          sudo rm -rf /usr/local/.ghcup \
+            /usr/share/dotnet \
+            /usr/share/swift \
+            /usr/local/share/powershell \
+            /usr/local/lib/android \
+            /opt/ghc \
+            /opt/hostedtoolcache/CodeQL \
+            /imagegeneration \
+            "$AGENT_TOOLSDIRECTORY"
+          sudo docker image prune --all --force
+          sudo docker builder prune -a
+
+      - name: Download source tarball
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-src-${{ env.VERSION }}
+          path: /home/runner/work/gollum/gollum/chromium-src
+
+      - name: Download out directory
+        uses: actions/download-artifact@v4
+        with:
+          name: chromium-out-${{ env.VERSION }}
+          path: /home/runner/work/gollum/gollum/chromium-src
+
+      - name: Clone depot_tools
+        shell: bash
+        env:
+          ACTIONS_ALLOW_UNSECURE_COMMANDS: true
+        run: |
+          cd $SRCDIR
+          echo "Clone depot_tools..."
+          git clone --depth=1 https://chromium.googlesource.com/chromium/tools/depot_tools
+          echo "::add-path::$GITHUB_WORKSPACE/chromium-src/depot_tools"
+          sudo apt install -y ninja-build gperf devscripts
+
+      - name: Extract tar
+        shell: bash
+        run: |
+          cd $SRCDIR && ls -lsh
+          tar -xf chromium-$VERSION.tar.xz
+          tar -xf out.tar.zst
+          ls -lsh
+          rm -f chromium-$VERSION.tar.xz out.tar.zst
+          mv out chromium-$VERSION && cd chromium-$VERSION
+          pwd && ls -lsh
+          sudo build/install-build-deps.sh
+          pwd && ls -lsh
+
+      - name: Build chrome
+        shell: bash
+        run: |
+          cd $SRCDIR/chromium-$VERSION
+          ninja -j 4 -C out/release chrome
+
+      - name: Build chrome_sandbox
+        shell: bash
+        run: |
+          cd $SRCDIR/chromium-$VERSION
+          ninja -j 4 -C out/release chrome_sandbox
+
+      - name: Build chromedriver
+        shell: bash
+        run: |
+          cd $SRCDIR/chromium-$VERSION
+          ninja -j 4 -C out/release chromedriver
+
+      - name: Build installer
+        shell: bash
+        run: |
+          cd $SRCDIR/chromium-$VERSION
+          ninja -j 4 -C out/release installer
+          ls -lsh out/release
+
+      - name: Upload DEB packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages-linux-deb-${{ env.VERSION }}
+          path: /home/runner/work/gollum/gollum/chromium-src/chromium-${{ env.VERSION }}/out/release/*.deb
+
+      - name: Upload RPM packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages-linux-rpm-${{ env.VERSION }}
+          path: /home/runner/work/gollum/gollum/chromium-src/chromium-${{ env.VERSION }}/out/release/*.rpm
+
+      - name: Compress artifacts
+        shell: bash
+        run: |
+          cd $SRCDIR/chromium-$VERSION
+          ZSTD_CLEVEL=12 tar -I zstd -cvpf /home/runner/work/gollum/gollum/chromium-src/out.tar.zst ./out
+
+      - name: Upload out directory
+        uses: actions/upload-artifact@v4
+        with:
+          name: chromium-out-${{ env.VERSION }}
+          path: /home/runner/work/gollum/gollum/chromium-src/out.tar.zst
+          overwrite: true
