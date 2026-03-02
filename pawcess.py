@@ -23,6 +23,11 @@ with open(fp, 'r') as file:
             print(jsonobj['data']['identification'])
         else:
             print(jsonobj['data']['country_of_residence'])
-            print(jsonobj['data']['date_of_birth'])
+
+            try:
+                print(jsonobj['data']['date_of_birth'])
+            except:
+                pass
+
             print(jsonobj['data']['nationality'])
             print(jsonobj['data']['name_elements'])
