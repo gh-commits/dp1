@@ -1,10 +1,16 @@
 import json
 import sys
+from datetime import datetime, timedelta
 
 fp = sys.argv[1]
+WORK_INTERVAL = 10*60
+LAST_SLEEP = datetime.now()
 
 with open(fp, 'r') as file:
     for line in file:
+        if (datetime.now() - LAST_SLEEP) > timedelta(minutes=10):  # <-- new
+            time.sleep(2*60)
+            LAST_SLEEP = datetime.now()
         jsonobj = json.loads(line)
         print(jsonobj)
         if jsonobj['data']['kind'] == "super-secure-person-with-significant-control" or jsonobj['data']['kind'] == "super-secure-beneficial-owner":
